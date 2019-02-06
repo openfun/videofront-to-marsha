@@ -1,0 +1,44 @@
+# env
+.env
+env.d/local
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Files
+/files/
+
+# PyCharm IDE
+.idea/
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Eclipse
+.settings/
+
+# Rope
+.ropeproject
+
+# Sublime-Text:
+/*.sublime-project
+/*.sublime-workspace
+
+# TextMate 2
+.tm_properties
+
+# VS Code
+.vscode
+
+# Mac Os
+.DS_Store
+
+# Temp files
+*~
+.~lock*
+
+# Swap files
+*.sw[po]

@@ -1,0 +1,14 @@
+# Environment variables required to run the transfer script
+
+# AWS credentials
+VIDEOFRONT_BUCKET_NAME=my-videofront-bucket-name
+MARSHA_AWS_ACCESS_KEY_ID=MYMARSHAAWSACCESSIDKEY
+MARSHA_AWS_SECRET_ACCESS_KEY=MyMarshaAWSSecretAccessKey
+MARSHA_AWS_REGION=eu-west-1
+
+# Marsha credentials
+MARSHA_BASE_URL=https://www.my-marsha-instance.com
+MARSHA_OAUTH_CONSUMER_KEY=MYMARSHAOAUTHCONSUMERKEY
+MARSHA_SHARED_SECRET=MyMarshaSharedSecret
+MARSHA_CONSUMER_SITE_DOMAIN=example.com
+MARSHA_CONSUMER_SITE_REFERER=https://www.example.com

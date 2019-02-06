@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Run commands in the docker container passing our environment variables
+
+docker run --rm -it \
+    -u "$(id -u)" \
+    --env-file ./env.d/local \
+    -v "${PWD}/:/app" \
+    "vf2m:latest" \
+    python "$@"
