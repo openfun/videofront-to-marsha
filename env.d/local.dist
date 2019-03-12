@@ -5,6 +5,7 @@ VIDEOFRONT_BUCKET_NAME=my-videofront-bucket-name
 MARSHA_AWS_ACCESS_KEY_ID=MYMARSHAAWSACCESSIDKEY
 MARSHA_AWS_SECRET_ACCESS_KEY=MyMarshaAWSSecretAccessKey
 MARSHA_AWS_REGION=eu-west-1
+MARSHA_BUCKET_NAME=staging-marsha-destination
 
 # Marsha credentials
 MARSHA_BASE_URL=https://www.my-marsha-instance.com
