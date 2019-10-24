@@ -77,7 +77,7 @@ def get_or_create_video(videofront_key, course_key, xblock_id, uuid):
         "context_id": course_key,
         "user_id": "vf2m",
         "lis_person_contact_email_primary": "fun.dev@fun-mooc.fr",
-        "roles": "Instructor",
+        "roles": "instructor",
     }
     lti_launch_url = "{:s}/lti/videos/{:s}".format(os.environ["MARSHA_BASE_URL"], uuid)
 
@@ -118,21 +118,17 @@ def get_or_create_video(videofront_key, course_key, xblock_id, uuid):
 
     # Extract the video data from response
     data_string = re.search(
-        '<div class="marsha-frontend-data" id="video" data-video="(.*)">', response.text
+        '<div id="marsha-frontend-data" data-context="(.*)">', response.text
     ).group(1)
     data = json.loads(unescape(data_string))
-
-    # Extract the JWT Token from response
-    jwt_token = re.search(
-        '<div class="marsha-frontend-data" data-jwt="(.*)" data-state="instructor"',
-        response.text,
-    ).group(1)
+    jwt_token = data["jwt"]
+    resource = data["resource"]
 
     # Get an upload policy and copy the video only if it has not yet been successfully uploaded
-    if data["upload_state"] == "pending":
+    if resource["upload_state"] == "pending":
         upload_policy = requests.post(
             "{:s}/api/videos/{!s}/initiate-upload/".format(
-                os.environ["MARSHA_BASE_URL"], data["id"]
+                os.environ["MARSHA_BASE_URL"], resource["id"]
             ),
             headers={"authorization": "Bearer {!s}".format(jwt_token)},
             verify=False,
