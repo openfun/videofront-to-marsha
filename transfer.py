@@ -52,7 +52,7 @@ def copy_object(videofront_key, marsha_bucket, marsha_key):
     marsha_s3.copy(copy_source, marsha_bucket, marsha_key)
 
 
-def get_or_create_video(videofront_key, course_key, xblock_id, uuid):
+def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
     """
     This function handles all the steps necessary to transfer a video from VideoFront to Marsha:
     - Handcraft an LTI launch request to Marsha that will get or create a video object (and its
@@ -71,9 +71,7 @@ def get_or_create_video(videofront_key, course_key, xblock_id, uuid):
     authenticate via a token and directly interact with the API instead of the LTI view...
     """
     lti_parameters = {
-        "resource_link_id": "{:s}-{:s}".format(
-            os.environ["MARSHA_CONSUMER_SITE_DOMAIN"], xblock_id
-        ),
+        "resource_link_id": f"{instance:s}-{xblock_id:s}",
         "context_id": course_key,
         "user_id": "vf2m",
         "lis_person_contact_email_primary": "fun.dev@fun-mooc.fr",
@@ -112,7 +110,7 @@ def get_or_create_video(videofront_key, course_key, xblock_id, uuid):
     response = requests.post(
         lti_launch_url,
         data=lti_parameters,
-        headers={"referer": os.environ["MARSHA_CONSUMER_SITE_REFERER"]},
+        headers={"referer": f"https://{instance:s}"},
         verify=False,
     )
 
