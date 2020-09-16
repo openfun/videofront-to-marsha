@@ -1,0 +1,25 @@
+dirname=$(echo $2 | cut -d ":" -f 2)
+
+oc rsh $1 << EOF
+mkdir -p /tmp/course
+rm -Rf /tmp/course/*
+python manage.py cms export $2 /tmp/course
+tar cfz "/tmp/${dirname}.tar.gz" -C /tmp course
+EOF
+
+rm source/*
+oc cp $1:/tmp/${dirname}.tar.gz source/
+
+docker run --rm -it \
+    -u "$(id -u)" \
+    --env-file ./env.d/local \
+    -v "${PWD}/:/app" \
+    "vf2m:latest" \
+    python convert.py $2
+
+docker run --rm -it \
+    -u "$(id -u)" \
+    --env-file ./env.d/local \
+    -v "${PWD}/:/app" \
+    "vf2m:latest" \
+    python transfer.py

@@ -8,6 +8,9 @@ __pycache__/
 
 # Files
 /files/
+/source/
+/target/
+/course/
 
 # PyCharm IDE
 .idea/

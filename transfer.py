@@ -8,9 +8,12 @@ from urllib.parse import unquote
 import urllib3
 
 import boto3
+from botocore.exceptions import ClientError
 import click
 from oauthlib import oauth1
 import requests
+
+SOURCE_BUCKET = "production-marsha-source"
 
 # Ignore insecure requests warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -49,10 +52,14 @@ def copy_object(videofront_key, marsha_bucket, marsha_key):
         "Bucket": os.environ["VIDEOFRONT_BUCKET_NAME"],
         "Key": videofront_key,
     }
-    marsha_s3.copy(copy_source, marsha_bucket, marsha_key)
+    try:
+        marsha_s3.copy(copy_source, marsha_bucket, marsha_key)
+    except ClientError:
+        print("Can't find video in VideoFront bucket")
+        pass
 
 
-def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
+def get_or_create_video(consumer_site, videofront_key, course_key, xblock_id, uuid):
     """
     This function handles all the steps necessary to transfer a video from VideoFront to Marsha:
     - Handcraft an LTI launch request to Marsha that will get or create a video object (and its
@@ -71,7 +78,7 @@ def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
     authenticate via a token and directly interact with the API instead of the LTI view...
     """
     lti_parameters = {
-        "resource_link_id": f"{instance:s}-{xblock_id:s}",
+        "resource_link_id": f"{consumer_site:s}-{xblock_id:s}",
         "context_id": course_key,
         "user_id": "vf2m",
         "lis_person_contact_email_primary": "fun.dev@fun-mooc.fr",
@@ -110,7 +117,7 @@ def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
     response = requests.post(
         lti_launch_url,
         data=lti_parameters,
-        headers={"referer": f"https://{instance:s}"},
+        headers={"referer": f"https://{consumer_site:s}"},
         verify=False,
     )
 
@@ -131,15 +138,18 @@ def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
             headers={"authorization": "Bearer {!s}".format(jwt_token)},
             verify=False,
         ).json()
-        copy_object(videofront_key, upload_policy["bucket"], upload_policy["key"])
+        copy_object(videofront_key, SOURCE_BUCKET, upload_policy["fields"]["key"])
 
     # Get the list of existing subtitle tracks for this video in Marsha
-    ttt_list = requests.get(
+    response = requests.get(
         "{:s}/api/timedtexttracks/".format(os.environ["MARSHA_BASE_URL"]),
         headers={"authorization": "Bearer {!s}".format(jwt_token)},
         verify=False,
-    ).json()
-    ttt_dict = {o["language"]: o for o in ttt_list}
+    )
+    if response.ok:
+        ttt_dict = {o["language"]: o for o in response.json()}
+    else:
+        ttt_dict = {}
 
     # Retrieve the subtitle files existing for this video in VideoFront
     for videofront_obj in marsha_s3.list_objects(
@@ -153,16 +163,18 @@ def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
         language = ttt_videofront_key.rsplit(".", 2)[-2]
         if language not in ttt_dict:
             ttt_data = {"language": language, "mode": "st"}
-            ttt_dict[language] = requests.post(
+            response = requests.post(
                 "{:s}/api/timedtexttracks/".format(os.environ["MARSHA_BASE_URL"]),
                 headers={"authorization": "Bearer {!s}".format(jwt_token)},
                 data=ttt_data,
                 verify=False,
-            ).json()
+            )
+            if response.ok:
+                ttt_dict[language] = response.json()
 
         # Get an upload policy and copy the track only if it has not yet been
         # successfully uploaded
-        if ttt_dict[language]["upload_state"] == "pending":
+        if ttt_dict.get(language) and ttt_dict[language]["upload_state"] == "pending":
             upload_policy = requests.post(
                 "{:s}/api/timedtexttracks/{!s}/initiate-upload/".format(
                     os.environ["MARSHA_BASE_URL"], ttt_dict[language]["id"]
@@ -171,13 +183,12 @@ def get_or_create_video(instance, videofront_key, course_key, xblock_id, uuid):
                 verify=False,
             ).json()
             copy_object(
-                ttt_videofront_key, upload_policy["bucket"], upload_policy["key"]
+                ttt_videofront_key, SOURCE_BUCKET, upload_policy["fields"]["key"]
             )
 
 
 @click.command()
-@click.argument("filename")
-def cli(filename):
+def cli():
     """The click command.
 
     Opens the csv file passed in argument and lets the `get_or_create` function handle the
@@ -198,10 +209,13 @@ def cli(filename):
         the video. We will use this key to copy the file directly from VideoFront's S3 bucket to
         Marsha's S3 bucket.
     """
-    with open("files/{:s}".format(filename), "r") as csvfile:
-        for row in csv.DictReader(csvfile, delimiter=";"):
-            print(" | ".join(row.values()))
-            get_or_create_video(**row)
+    for path in os.listdir("files"):
+        if path.endswith("csv"):
+            # Transfer the course to Marsha
+            with open(f"files/{path:s}", "r") as csvfile:
+                for row in csv.DictReader(csvfile, delimiter=";"):
+                    print(" | ".join(row.values()))
+                    get_or_create_video(**row)
 
 
 if __name__ == "__main__":
